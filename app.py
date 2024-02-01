@@ -1,4 +1,3 @@
-import requests
 import re
 import json
 import pandas as pd
@@ -14,11 +13,12 @@ logging.basicConfig(level=logging.INFO)
 # Define a retry decorator for network requests
 @retry(stop_max_attempt_number=3, wait_random_min=1000, wait_random_max=3000)
 def fetch_data_with_retry(url, headers):
-    response = requests.get(url, headers=headers)
+    response = st.session_state.requests.get(url, headers=headers)
     response.raise_for_status()
     return response
 
 # Function to fetch data from Zillow
+@st.cache
 def fetch_zillow_data(base_url):
     # Define headers for HTTP requests
     user_agents = [
@@ -87,10 +87,6 @@ def fetch_zillow_data(base_url):
 def main():
     st.title('Zillow Property Search Results')
 
-    # Define the base search URL based on the user's input
-    search_query = st.text_input("Enter Zillow Search Query", "new-york-ny/")  # Example: new-york-ny/ or 11233/
-    base_url = f'https://www.zillow.com/{search_query}'
-
     # Add a select box for search type
     search_type = st.selectbox('Select Search Type', ['For Sale', 'For Rent'])
 
@@ -100,6 +96,10 @@ def main():
     else:
         # Set the base URL for homes for rent
         base_url = 'https://www.zillow.com/new-york-ny/rentals/'
+
+    # Define the base search URL based on the user's input
+    search_query = st.text_input("Enter Zillow Search Query", "new-york-ny/")  # Example: new-york-ny/ or 11233/
+    base_url = f'https://www.zillow.com/{search_query}'
 
     # Button to trigger Zillow data fetching
     if st.button('Fetch Zillow Data'):
