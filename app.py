@@ -91,15 +91,23 @@ def main():
     location = st.text_input("Enter Location", "new-york-ny/")  # Example: new-york-ny/ or 11233/
     location = f'https://www.zillow.com/{location}'
 
-    # Select property type
+    # Select rental/sale
+    sale_or_rental = st.selectbox("Sale or Rental", ["For Sale", "For Rent"])
+
+     # Select property type
     property_type = st.selectbox('Select Property Type', ['Houses', 'Apartments', 'Townhouses'])
 
+    if sale_or_rental == "For Sale":
+        base_url_type = "for_sale"
+    else:
+        base_url_type = "for_rent"
+
     if property_type == 'Houses':
-        base_url = f'{location}/homes/for_rent/'
+        base_url = f'https://www.zillow.com/{location}/homes/{base_url_type}/'
     elif property_type == 'Apartments':
-        base_url = f'{location}/apartments/'
+        base_url = f'https://www.zillow.com/{location}/apartments/'
     elif property_type == 'Townhouses':
-        base_url = f'{location}/townhomes/for_rent/'
+        base_url = f'https://www.zillow.com/{location}/townhomes/{base_url_type}/'
 
     # Button to trigger Zillow data fetching
     if st.button('Fetch Zillow Data'):
