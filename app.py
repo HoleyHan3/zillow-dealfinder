@@ -54,7 +54,11 @@ while True:
             break
 
 # Drop unnecessary columns
-df = df.drop('hdpData', axis=1)
+# Drop the 'hdpData' column if it exists
+if 'hdpData' in df.columns:
+    df = df.drop('hdpData', axis=1)
+else:
+    st.warning("Column 'hdpData' not found in the DataFrame.")
 
 # Remove duplicate entries based on 'zpid'
 df = df.drop_duplicates(subset='zpid', keep="last")
