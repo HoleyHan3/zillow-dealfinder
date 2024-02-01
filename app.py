@@ -87,6 +87,16 @@ def fetch_zillow_data(base_url):
 def main():
     st.title('Zillow Property Search Results')
 
+    # Add a select box for search type
+    search_type = st.selectbox('Select Search Type', ['For Sale', 'For Rent'])
+
+    if search_type == 'For Sale':
+        # Set the base URL for homes for sale
+        base_url = 'https://www.zillow.com/new-york-ny/'
+    else:
+        # Set the base URL for homes for rent
+        base_url = 'https://www.zillow.com/new-york-ny/rentals/'
+
     # Define the base search URL based on the user's input
     search_query = st.text_input("Enter Zillow Search Query", "new-york-ny/")  # Example: new-york-ny/ or 11233/
     base_url = f'https://www.zillow.com/{search_query}'
@@ -96,11 +106,14 @@ def main():
         # Fetch Zillow data
         zillow_df = fetch_zillow_data(base_url)
 
-        # Display the shape of the DataFrame
-        st.write('Shape:', zillow_df.shape)
+        if zillow_df.empty:
+            st.warning("No data available. Please check your search query and try again.")
+        else:
+            # Display the shape of the DataFrame
+            st.write('Shape:', zillow_df.shape)
 
-        # Display the top 20 rows with selected columns
-        st.write(zillow_df[['id', 'address', 'beds', 'baths', 'area', 'price', 'zestimate', 'best_deal']].head(20))
+            # Display the top 20 rows with selected columns
+            st.write(zillow_df[['id', 'address', 'beds', 'baths', 'area', 'price', 'zestimate', 'best_deal']].head(20))
 
 if __name__ == "__main__":
     main()
