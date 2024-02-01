@@ -1,122 +1,82 @@
-import streamlit as st
 import requests
-from bs4 import BeautifulSoup
+import re
+import json
 import pandas as pd
+import streamlit as st
 import time
+import random
 
-# Define rate limit (10 requests per minute)
-RATE_LIMIT_PER_MINUTE = 10
-# Define rate limit periods
-RATE_LIMIT_PERIOD_MINUTE = 60  # 60 seconds in a minute
+# Define the base search URL based on the user's input
+search_query = st.text_input("Enter Zillow Search Query", "new-york-ny/")  # Example: new-york-ny/ or 11233/
+base_url = f'https://www.zillow.com/{search_query}'
 
-# Function to scrape Zillow listings for a given city and page
-def scrape_zillow_listings(city, page):
-    """
-    Scrapes Zillow listings for a given city and page.
+# Define headers for HTTP requests
+user_agents = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36 Edg/91.0.864.59',
+    # Add more user agents as needed
+]
 
-    Args:
-        city (str): The city for which listings are scraped.
-        page (int): The page number of listings to scrape.
+# Initialize an empty DataFrame
+df = pd.DataFrame()
 
-    Returns:
-        list: List of dictionaries containing listing information.
-    """
-    # Perform web scraping of Zillow listings
-    listings = []
-    url = f'https://www.zillow.com/homes/for_sale/{city}/{page}_p/'
-    # Make HTTP request and scrape listings from the page
-    with requests.Session() as session:
-        response = session.get(url)
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.content, 'html.parser')
-            listings.extend(extract_listings_from_html(soup))
-        else:
-            st.error(f"Failed to retrieve Zillow listings for page {page}")
-    
-    return listings
+# Fetch data from multiple pages of search results
+page = 1
+while True:
+    # Construct the search URL for the current page
+    search_url = f'{base_url}/{page}_p/'
 
-# Function to extract listings from HTML content
-def extract_listings_from_html(soup):
-    """
-    Extracts listings from HTML content.
+    # Rotate user-agent header
+    user_agent = random.choice(user_agents)
+    req_headers = {
+        'User-Agent': user_agent,
+        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+        'accept-encoding': 'gzip, deflate, br',
+        'accept-language': 'en-US,en;q=0.8',
+        'upgrade-insecure-requests': '1'
+    }
 
-    Args:
-        soup (BeautifulSoup): The BeautifulSoup object containing the HTML content.
-
-    Returns:
-        list: List of dictionaries containing listing information.
-    """
-    listings = []
-    cards = soup.find_all('article', {'class': 'list-card'})
-    for card in cards:
-        listing = {}
-        listing['price'] = card.find('div', {'class': 'list-card-price'}).text.strip()
-        listing['address'] = card.find('address').text.strip()
-        listing['details_link'] = card.find('a', {'class': 'list-card-link'}).get('href')
-        listings.append(listing)
-    return listings
-
-# Function to perform Zillow property search based on user input
-def search_zillow(city, num_results):
-    """
-    Performs a Zillow property search based on user input.
-
-    Args:
-        city (str): The city for which the search is performed.
-        num_results (int): The number of results to return.
-
-    Returns:
-        list: List of dictionaries containing search results.
-    """
-    # Attempt to scrape data from Zillow website
-    listings = []
-    page = 1
-
-    # Initialize variables for rate limit tracking
-    requests_count = 0
-    start_time = time.time()
-
-    while len(listings) < num_results:
-        # Check rate limit
-        elapsed_time = time.time() - start_time
-        if elapsed_time < RATE_LIMIT_PERIOD_MINUTE and requests_count >= RATE_LIMIT_PER_MINUTE:
-            time.sleep(RATE_LIMIT_PERIOD_MINUTE - elapsed_time)
-            start_time = time.time()
-            requests_count = 0
-
-        new_listings = scrape_zillow_listings(city, page)
-        if not new_listings:
+    # Fetch data from the current page
+    with requests.Session() as s:
+        try:
+            r = s.get(search_url, headers=req_headers)
+            if r.status_code == 200:
+                data = json.loads(re.search(r'!--(\{"queryState".*?)-->', r.text).group(1))
+                listings = data['cat1']['searchResults']['listResults']
+                df = df.append(listings, ignore_index=True)
+                page += 1
+                time.sleep(random.uniform(1, 3))  # Add a random delay between requests
+            else:
+                st.error(f"Failed to retrieve Zillow listings for page {page}")
+                break
+        except Exception as e:
+            st.error(f"An error occurred: {str(e)}")
             break
-        listings.extend(new_listings)
-        page += 1
-        requests_count += 1
 
-    return listings[:num_results]
+# Drop unnecessary columns
+df = df.drop('hdpData', axis=1)
+
+# Remove duplicate entries based on 'zpid'
+df = df.drop_duplicates(subset='zpid', keep="last")
+
+# Fill NaN values in 'zestimate' column with 0
+df['zestimate'] = df['zestimate'].fillna(0)
+
+# Calculate 'best_deal' column
+df['best_deal'] = df['unformattedPrice'] - df['zestimate']
+
+# Sort DataFrame based on 'best_deal' column
+df = df.sort_values(by='best_deal', ascending=True)
 
 # Streamlit App
 def main():
-    st.title('Zillow Property Search')
+    st.title('Zillow Property Search Results')
 
-    # User Input Section
-    st.sidebar.header('Search Parameters')
-    city = st.sidebar.text_input('City', 'New York City')
-    num_results = st.sidebar.number_input('Number of Results', min_value=1, value=10)
+    # Display the shape of the DataFrame
+    st.write('Shape:', df.shape)
 
-    # Button to Trigger Search
-    if st.sidebar.button('Search'):
-        if city:
-            # Perform Zillow property search based on user input
-            search_results = search_zillow(city, num_results)
-            if search_results:
-                # Display search results here
-                st.write("Search Results:")
-                df = pd.DataFrame(search_results)
-                st.write("Shape:", df.shape[0])
-                st.dataframe(df)
-            else:
-                st.error("Failed to retrieve search results. Please check the city name and try again.")
-        else:
-            st.warning("Please enter a city name to search for properties.")
+    # Display the top 20 rows with selected columns
+    st.write(df[['id', 'address', 'beds', 'baths', 'area', 'price', 'zestimate', 'best_deal']].head(20))
 
 if __name__ == "__main__":
     main()
