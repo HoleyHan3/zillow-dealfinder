@@ -3,11 +3,15 @@ import requests
 from bs4 import BeautifulSoup
 import json
 import xmltodict
-from streamlit.secrets import Secrets
 
-# Load secrets
-secrets = Secrets()
-zillow_api_key = secrets["zillow_api_key"]
+# Access the secret API key
+@st.cache
+def get_zillow_api_key():
+    try:
+        return st.secrets["zillow_api_key"]
+    except Exception as e:
+        st.warning("Failed to retrieve Zillow API key. Please check your secrets.")
+        return None
 
 # Define headers for HTTP requests
 req_headers = {
@@ -18,33 +22,20 @@ req_headers = {
     'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36'
 }
 
-# Function to scrape home details from Zillow URL
-def scrape_home_details(url):
-    with requests.Session() as s:
-        r = s.get(url, headers=req_headers)
-    soup = BeautifulSoup(r.content, 'html.parser')
-    price = soup.find('span', {'class': 'zsg-photo-card-price'}).text.strip()
-    info = soup.find('span', {'class': 'zsg-photo-card-info'}).text.strip()
-    address = soup.find('span', {'itemprop': 'address'}).text.strip()
-    monthly_payment = soup.find('div', {'data-testid': 'non-personalized-monthly-payment'}).text.strip()
-    return price, info, address, monthly_payment
-
-# Function to scrape Zillow listings for a given city
-def scrape_zillow_listings(city):
+# Function to scrape Zillow listings for a given city and page
+def scrape_zillow_listings(city, page):
     # Perform web scraping of Zillow listings
     listings = []
 
-    # Sample URLs for demonstration, you need to implement pagination logic
-    for page in range(1, 3):  # Scrapes first 2 pages
-        url = f'https://www.zillow.com/homes/for_sale/{city}/{page}_p/'
-        # Make HTTP request and scrape listings from the page
-        with requests.Session() as session:
-            response = session.get(url)
-            if response.status_code == 200:
-                soup = BeautifulSoup(response.content, 'html.parser')
-                listings.extend(extract_listings_from_html(soup))
-            else:
-                st.error(f"Failed to retrieve Zillow listings for page {page}")
+    url = f'https://www.zillow.com/homes/for_sale/{city}/{page}_p/'
+    # Make HTTP request and scrape listings from the page
+    with requests.Session() as session:
+        response = session.get(url)
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.content, 'html.parser')
+            listings.extend(extract_listings_from_html(soup))
+        else:
+            st.error(f"Failed to retrieve Zillow listings for page {page}")
     
     return listings
 
@@ -61,36 +52,46 @@ def extract_listings_from_html(soup):
     return listings
 
 # Function to perform Zillow property search based on user input
-def search_zillow(city):
+def search_zillow(city, num_results):
     # Attempt to scrape data from Zillow website
-    listings = scrape_zillow_listings(city)
-    if listings:
-        return listings
-    else:
-        # Fallback to Zillow API if scraping fails
-        scrape_zillow_api(city)
+    listings = []
+    page = 1
+    while len(listings) < num_results:
+        new_listings = scrape_zillow_listings(city, page)
+        if not new_listings:
+            break
+        listings.extend(new_listings)
+        page += 1
+    return listings[:num_results]
 
 # Streamlit App
-st.title('Zillow Property Search')
+def main():
+    st.title('Zillow Property Search')
 
-# User Input Section
-st.sidebar.header('Search Parameters')
-city = st.sidebar.text_input('City', 'New York City')
+    # User Input Section
+    st.sidebar.header('Search Parameters')
+    city = st.sidebar.text_input('City', 'New York City')
+    num_results = st.sidebar.number_input('Number of Results', min_value=1, value=10)
 
-# Button to Trigger Search
-if st.sidebar.button('Search'):
-    if city:
-        # Perform Zillow property search based on user input
-        search_results = search_zillow(city)
-        if search_results:
-            st.write("Search Results:")
-            # Display search results here
-            for i, listing in enumerate(search_results, start=1):
-                st.write(f"Listing {i}:")
-                st.write(f"Price: {listing['price']}")
-                st.write(f"Address: {listing['address']}")
-                st.write(f"Details Link: {listing['details_link']}")
+    # Button to Trigger Search
+    if st.sidebar.button('Search'):
+        if city:
+            # Perform Zillow property search based on user input
+            zillow_api_key = get_zillow_api_key()
+            if zillow_api_key:
+                search_results = search_zillow(city, num_results)
+                if search_results:
+                    st.write("Search Results:")
+                    # Display search results here
+                    for i, listing in enumerate(search_results, start=1):
+                        st.write(f"Listing {i}:")
+                        st.write(f"Price: {listing['price']}")
+                        st.write(f"Address: {listing['address']}")
+                        st.write(f"Details Link: {listing['details_link']}")
+                else:
+                    st.error("Failed to retrieve search results. Please check the city name and try again.")
         else:
-            st.error("Failed to retrieve search results. Please check the city name and try again.")
-    else:
-        st.warning("Please enter a city name to search for properties.")
+            st.warning("Please enter a city name to search for properties.")
+
+if __name__ == "__main__":
+    main()
