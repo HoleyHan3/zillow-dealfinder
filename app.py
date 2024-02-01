@@ -53,34 +53,45 @@ while True:
             st.error(f"An error occurred: {str(e)}")
             break
 
-# Drop unnecessary columns
-# Drop the 'hdpData' column if it exists
-if 'hdpData' in df.columns:
-    df = df.drop('hdpData', axis=1)
+# Check if the DataFrame is empty
+if not df.empty:
+    # Drop unnecessary columns
+    if 'hdpData' in df.columns:
+        df = df.drop('hdpData', axis=1)
+
+    # Remove duplicate entries based on 'zpid'
+    if 'zpid' in df.columns:
+        df = df.drop_duplicates(subset='zpid', keep="last")
+
+    # Fill NaN values in 'zestimate' column with 0 if the column exists
+    if 'zestimate' in df.columns:
+        df['zestimate'] = df['zestimate'].fillna(0)
+    else:
+        st.warning("Column 'zestimate' not found in the DataFrame.")
+
+    # Calculate 'best_deal' column if required columns exist
+    if 'unformattedPrice' in df.columns and 'zestimate' in df.columns:
+        df['best_deal'] = df['unformattedPrice'] - df['zestimate']
+    else:
+        st.warning("Required columns for calculating 'best_deal' not found in the DataFrame.")
+
+    # Sort DataFrame based on 'best_deal' column if it exists
+    if 'best_deal' in df.columns:
+        df = df.sort_values(by='best_deal', ascending=True)
+    else:
+        st.warning("Column 'best_deal' not found in the DataFrame.")
+
+ # Streamlit App
+    def main():
+        st.title('Zillow Property Search Results')
+
+        # Display the shape of the DataFrame
+        st.write('Shape:', df.shape)
+
+        # Display the top 20 rows with selected columns
+        st.write(df[['id', 'address', 'beds', 'baths', 'area', 'price', 'zestimate', 'best_deal']].head(20))
+
+    if __name__ == "__main__":
+        main()
 else:
-    st.warning("Column 'hdpData' not found in the DataFrame.")
-
-# Remove duplicate entries based on 'zpid'
-df = df.drop_duplicates(subset='zpid', keep="last")
-
-# Fill NaN values in 'zestimate' column with 0
-df['zestimate'] = df['zestimate'].fillna(0)
-
-# Calculate 'best_deal' column
-df['best_deal'] = df['unformattedPrice'] - df['zestimate']
-
-# Sort DataFrame based on 'best_deal' column
-df = df.sort_values(by='best_deal', ascending=True)
-
-# Streamlit App
-def main():
-    st.title('Zillow Property Search Results')
-
-    # Display the shape of the DataFrame
-    st.write('Shape:', df.shape)
-
-    # Display the top 20 rows with selected columns
-    st.write(df[['id', 'address', 'beds', 'baths', 'area', 'price', 'zestimate', 'best_deal']].head(20))
-
-if __name__ == "__main__":
-    main()
+    st.warning("No data available in the DataFrame. Check the retrieved data from Zillow.")
