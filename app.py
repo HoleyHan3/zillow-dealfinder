@@ -8,6 +8,12 @@ import pandas as pd
 # Access the secret API key
 @st.cache
 def get_zillow_api_key():
+    """
+    Retrieves the Zillow API key from Streamlit secrets.
+
+    Returns:
+        str or None: Zillow API key if found, otherwise None.
+    """
     try:
         return st.secrets["zillow_api_key"]
     except KeyError:
@@ -25,6 +31,16 @@ req_headers = {
 
 # Function to scrape Zillow listings for a given city and page
 def scrape_zillow_listings(city, page):
+    """
+    Scrapes Zillow listings for a given city and page.
+
+    Args:
+        city (str): The city for which listings are scraped.
+        page (int): The page number of listings to scrape.
+
+    Returns:
+        list: List of dictionaries containing listing information.
+    """
     # Perform web scraping of Zillow listings
     listings = []
 
@@ -42,6 +58,15 @@ def scrape_zillow_listings(city, page):
 
 # Function to extract listings from HTML content
 def extract_listings_from_html(soup):
+    """
+    Extracts listings from HTML content.
+
+    Args:
+        soup (BeautifulSoup): The BeautifulSoup object containing the HTML content.
+
+    Returns:
+        list: List of dictionaries containing listing information.
+    """
     listings = []
     cards = soup.find_all('article', {'class': 'list-card'})
     for card in cards:
@@ -54,6 +79,16 @@ def extract_listings_from_html(soup):
 
 # Function to perform Zillow property search based on user input
 def search_zillow(city, num_results):
+     """
+    Performs a Zillow property search based on user input.
+
+    Args:
+        city (str): The city for which the search is performed.
+        num_results (int): The number of results to return.
+
+    Returns:
+        list: List of dictionaries containing search results.
+    """
     # Attempt to scrape data from Zillow website
     listings = []
     page = 1
