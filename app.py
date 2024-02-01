@@ -3,6 +3,7 @@ import requests
 from bs4 import BeautifulSoup
 import json
 import xmltodict
+import pandas as pd
 
 # Access the secret API key
 @st.cache
@@ -81,13 +82,11 @@ def main():
             if zillow_api_key:
                 search_results = search_zillow(city, num_results)
                 if search_results:
-                    st.write("Search Results:")
                     # Display search results here
-                    for i, listing in enumerate(search_results, start=1):
-                        st.write(f"Listing {i}:")
-                        st.write(f"Price: {listing['price']}")
-                        st.write(f"Address: {listing['address']}")
-                        st.write(f"Details Link: {listing['details_link']}")
+                    st.write("Search Results:")
+                    df = pd.DataFrame(search_results)
+                    st.write("Shape:", df.shape[0])
+                    st.dataframe(df)
                 else:
                     st.error("Failed to retrieve search results. Please check the city name and try again.")
         else:
