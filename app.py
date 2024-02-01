@@ -5,20 +5,20 @@ import streamlit as st
 import time
 import random
 import logging
-from retrying import retry  # Install using pip install retrying
+import requests
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 
 # Define a retry decorator for network requests
-@retry(stop_max_attempt_number=3, wait_random_min=1000, wait_random_max=3000)
+@st.cache(show_spinner=False)
 def fetch_data_with_retry(url, headers):
-    response = st.session_state.requests.get(url, headers=headers)
+    response = requests.get(url, headers=headers)
     response.raise_for_status()
     return response
 
 # Function to fetch data from Zillow
-@st.cache
+@st.cache(show_spinner=False)
 def fetch_zillow_data(base_url):
     # Define headers for HTTP requests
     user_agents = [
@@ -104,7 +104,8 @@ def main():
     # Button to trigger Zillow data fetching
     if st.button('Fetch Zillow Data'):
         # Fetch Zillow data
-        zillow_df = fetch_zillow_data(base_url)
+        with st.spinner('Fetching data...'):
+            zillow_df = fetch_zillow_data(base_url)
 
         if zillow_df.empty:
             st.warning("No data available. Please check your search query and try again.")
