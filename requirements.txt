@@ -1,0 +1,6 @@
+requests
+xmltodict
+colorama
+beautifulsoup4
+lxml
+streamlit
