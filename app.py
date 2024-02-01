@@ -10,8 +10,8 @@ import pandas as pd
 def get_zillow_api_key():
     try:
         return st.secrets["zillow_api_key"]
-    except Exception as e:
-        st.warning("Failed to retrieve Zillow API key. Please check your secrets.")
+    except KeyError:
+        st.warning("Zillow API key not found in secrets.")
         return None
 
 # Define headers for HTTP requests
