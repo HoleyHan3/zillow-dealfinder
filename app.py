@@ -111,15 +111,6 @@ def perform_zillow_search(neighborhood, price_min, price_max):
 
 def display_results(results):
     st.write('-' * 100)
-    for listing in results:
-        address = listing['address']
-        price = listing['price']
-        rent = listing['rent']
-
-        st.write(f'{rent} at {price} - {address}')
-        
-        if listing['is_renting']:
-            st.write("This property is available for rent.")
-
-        # Add more details and formatting as needed
-        st.write('-' * 100)
+    df = pd.DataFrame(results)
+    st.dataframe(df)
+    st.write('-' * 100)
