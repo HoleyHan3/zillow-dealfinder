@@ -9,16 +9,17 @@ from streamlit.secrets import Secrets
 secrets = Secrets()
 zillow_api_key = secrets["zillow_api_key"]
 
+# Define headers for HTTP requests
+req_headers = {
+    'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+    'accept-encoding': 'gzip, deflate, br',
+    'accept-language': 'en-US,en;q=0.8',
+    'upgrade-insecure-requests': '1',
+    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36'
+}
+
 # Function to scrape home details from Zillow URL
 def scrape_home_details(url):
-    # Define headers for HTTP requests
-    req_headers = {
-        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
-        'accept-encoding': 'gzip, deflate, br',
-        'accept-language': 'en-US,en;q=0.8',
-        'upgrade-insecure-requests': '1',
-        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36'
-    }
     with requests.Session() as s:
         r = s.get(url, headers=req_headers)
     soup = BeautifulSoup(r.content, 'html.parser')
@@ -28,43 +29,35 @@ def scrape_home_details(url):
     monthly_payment = soup.find('div', {'data-testid': 'non-personalized-monthly-payment'}).text.strip()
     return price, info, address, monthly_payment
 
-# Function to scrape data from Zillow using API
-def scrape_zillow_api(city):
-    zillow_api_url = 'https://www.zillow.com/webservice/GetRegionChildren.htm'
-    params = {
-        'zws-id': zillow_api_key,
-        'city': city
-    }
-    response = requests.get(zillow_api_url, params=params)
-    if response.status_code == 200:
-        resp = xmltodict.parse(response.text, process_namespaces=True)['http://www.zillow.com/static/xsd/RegionChildren.xsd:regionchildren']
-        data = resp['response']
-        # Process API response data
-        # Example:
-        # listings = process_api_response(data)
-        # return listings
-    else:
-        st.error("Failed to retrieve data from Zillow API")
-
 # Function to scrape Zillow listings for a given city
 def scrape_zillow_listings(city):
     # Perform web scraping of Zillow listings
     listings = []
 
     # Sample URLs for demonstration, you need to implement pagination logic
-    url = f'https://www.zillow.com/homes/for_sale/{city}/'
-    # Make HTTP request and scrape listings from the page
-    # Implement pagination logic to scrape multiple pages
-    with requests.Session() as session:
-        response = session.get(url)
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.content, 'html.parser')
-            # Extract listings from the page
-            # Example:
-            # listings = extract_listings_from_html(soup)
-        else:
-            st.error("Failed to retrieve Zillow listings")
+    for page in range(1, 3):  # Scrapes first 2 pages
+        url = f'https://www.zillow.com/homes/for_sale/{city}/{page}_p/'
+        # Make HTTP request and scrape listings from the page
+        with requests.Session() as session:
+            response = session.get(url)
+            if response.status_code == 200:
+                soup = BeautifulSoup(response.content, 'html.parser')
+                listings.extend(extract_listings_from_html(soup))
+            else:
+                st.error(f"Failed to retrieve Zillow listings for page {page}")
     
+    return listings
+
+# Function to extract listings from HTML content
+def extract_listings_from_html(soup):
+    listings = []
+    cards = soup.find_all('article', {'class': 'list-card'})
+    for card in cards:
+        listing = {}
+        listing['price'] = card.find('div', {'class': 'list-card-price'}).text.strip()
+        listing['address'] = card.find('address').text.strip()
+        listing['details_link'] = card.find('a', {'class': 'list-card-link'}).get('href')
+        listings.append(listing)
     return listings
 
 # Function to perform Zillow property search based on user input
@@ -92,7 +85,11 @@ if st.sidebar.button('Search'):
         if search_results:
             st.write("Search Results:")
             # Display search results here
-            st.write(search_results)
+            for i, listing in enumerate(search_results, start=1):
+                st.write(f"Listing {i}:")
+                st.write(f"Price: {listing['price']}")
+                st.write(f"Address: {listing['address']}")
+                st.write(f"Details Link: {listing['details_link']}")
         else:
             st.error("Failed to retrieve search results. Please check the city name and try again.")
     else:
