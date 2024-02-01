@@ -1,33 +1,13 @@
 import streamlit as st
 import requests
 from bs4 import BeautifulSoup
-import json
-import xmltodict
 import pandas as pd
+import time
 
-# Access the secret API key
-@st.cache
-def get_zillow_api_key():
-    """
-    Retrieves the Zillow API key from Streamlit secrets.
-
-    Returns:
-        str or None: Zillow API key if found, otherwise None.
-    """
-    try:
-        return st.secrets["zillow_api_key"]
-    except KeyError:
-        st.warning("Zillow API key not found in secrets.")
-        return None
-
-# Define headers for HTTP requests
-req_headers = {
-    'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
-    'accept-encoding': 'gzip, deflate, br',
-    'accept-language': 'en-US,en;q=0.8',
-    'upgrade-insecure-requests': '1',
-    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36'
-}
+# Define rate limit (10 requests per minute)
+RATE_LIMIT_PER_MINUTE = 10
+# Define rate limit periods
+RATE_LIMIT_PERIOD_MINUTE = 60  # 60 seconds in a minute
 
 # Function to scrape Zillow listings for a given city and page
 def scrape_zillow_listings(city, page):
@@ -78,7 +58,7 @@ def extract_listings_from_html(soup):
 
 # Function to perform Zillow property search based on user input
 def search_zillow(city, num_results):
-     """
+    """
     Performs a Zillow property search based on user input.
 
     Args:
@@ -91,12 +71,26 @@ def search_zillow(city, num_results):
     # Attempt to scrape data from Zillow website
     listings = []
     page = 1
+
+    # Initialize variables for rate limit tracking
+    requests_count = 0
+    start_time = time.time()
+
     while len(listings) < num_results:
+        # Check rate limit
+        elapsed_time = time.time() - start_time
+        if elapsed_time < RATE_LIMIT_PERIOD_MINUTE and requests_count >= RATE_LIMIT_PER_MINUTE:
+            time.sleep(RATE_LIMIT_PERIOD_MINUTE - elapsed_time)
+            start_time = time.time()
+            requests_count = 0
+
         new_listings = scrape_zillow_listings(city, page)
         if not new_listings:
             break
         listings.extend(new_listings)
         page += 1
+        requests_count += 1
+
     return listings[:num_results]
 
 # Streamlit App
@@ -112,17 +106,15 @@ def main():
     if st.sidebar.button('Search'):
         if city:
             # Perform Zillow property search based on user input
-            zillow_api_key = get_zillow_api_key()
-            if zillow_api_key:
-                search_results = search_zillow(city, num_results)
-                if search_results:
-                    # Display search results here
-                    st.write("Search Results:")
-                    df = pd.DataFrame(search_results)
-                    st.write("Shape:", df.shape[0])
-                    st.dataframe(df)
-                else:
-                    st.error("Failed to retrieve search results. Please check the city name and try again.")
+            search_results = search_zillow(city, num_results)
+            if search_results:
+                # Display search results here
+                st.write("Search Results:")
+                df = pd.DataFrame(search_results)
+                st.write("Shape:", df.shape[0])
+                st.dataframe(df)
+            else:
+                st.error("Failed to retrieve search results. Please check the city name and try again.")
         else:
             st.warning("Please enter a city name to search for properties.")
 
