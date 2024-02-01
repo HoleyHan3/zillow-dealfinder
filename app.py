@@ -43,7 +43,6 @@ def scrape_zillow_listings(city, page):
     """
     # Perform web scraping of Zillow listings
     listings = []
-
     url = f'https://www.zillow.com/homes/for_sale/{city}/{page}_p/'
     # Make HTTP request and scrape listings from the page
     with requests.Session() as session:
