@@ -87,25 +87,24 @@ def fetch_zillow_data(base_url):
 def main():
     st.title('Zillow Property Search Results')
 
-    # Add a select box for search type
-    search_type = st.selectbox('Select Search Type', ['For Sale', 'For Rent'])
+    # Select location
+    location = st.text_input("Enter Location", "new-york-ny/")  # Example: new-york-ny/ or 11233/
+    location = f'https://www.zillow.com/{location}'
 
-    if search_type == 'For Sale':
-        # Set the base URL for homes for sale
-        base_url = 'https://www.zillow.com/new-york-ny/'
-    else:
-        # Set the base URL for homes for rent
-        base_url = 'https://www.zillow.com/new-york-ny/rentals/'
+    # Select property type
+    property_type = st.selectbox('Select Property Type', ['Houses', 'Apartments', 'Townhouses'])
 
-    # Define the base search URL based on the user's input
-    search_query = st.text_input("Enter Zillow Search Query", "new-york-ny/")  # Example: new-york-ny/ or 11233/
-    base_url = f'https://www.zillow.com/{search_query}'
+    if property_type == 'Houses':
+        base_url = f'{location}/homes/for_rent/'
+    elif property_type == 'Apartments':
+        base_url = f'{location}/apartments/'
+    elif property_type == 'Townhouses':
+        base_url = f'{location}/townhomes/for_rent/'
 
     # Button to trigger Zillow data fetching
     if st.button('Fetch Zillow Data'):
         # Fetch Zillow data
-        with st.spinner('Fetching data...'):
-            zillow_df = fetch_zillow_data(base_url)
+        zillow_df = fetch_zillow_data(base_url)
 
         if zillow_df.empty:
             st.warning("No data available. Please check your search query and try again.")
