@@ -62,11 +62,6 @@ def fetch_zillow_data(location, sale_or_rent='', home_type=''):
 
     return df
 
-        
-    except Exception as e:
-        logging.error(f"An error occurred while fetching data: {str(e)}")
-        return pd.DataFrame()
-
 # Streamlit App
 def main():
     st.title('Zillow Property Search Results')
