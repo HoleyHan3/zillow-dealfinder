@@ -25,14 +25,14 @@ Since `venv` is a built-in module of any stock Python installation we don't need
 To create a virtual environment in the _virtual_env_ folder:
 
 ```
-python -m venv virtual_env
+python3 -m venv <name_of_virtualenv>
 ```
 
 In order for the virtual environment to have access to globally installed Python packages the flag `--system-site-packages` should be used.
 
 To activate the virtual environment
 ```
-source virtual_env/bin/activate
+source <name_of_virtualenv>/bin/activate
 ```
 This will add some text to your command prompt indicating that the environment is activated. The output of ```pip list``` should be different than the one we see without the virtual environment.
 
