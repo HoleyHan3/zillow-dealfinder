@@ -21,7 +21,7 @@ def main():
     st.title('Zillow Property Search Results')
 
     # User input for location
-    location = st.text_input("Enter Location (e.g., neighborhood-city-state-zipcode)", "new-york")
+    location = st.text_input("Enter Location (e.g., neighborhood-city-state-zipcode)", "New York")
 
     # Validate location input
     if not validate_location(location):
