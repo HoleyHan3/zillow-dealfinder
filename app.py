@@ -29,10 +29,10 @@ def main():
         return
 
     # Select box for choosing between homes for sale and homes for rent
-    sale_or_rent = st.selectbox("Select", SALE_OR_RENT_OPTIONS,index=0, disabled=True)
+    sale_or_rent = st.selectbox("Select", SALE_OR_RENT_OPTIONS,index=0)
 
     # Select box for choosing home types
-    home_type = st.selectbox("Select Home Type", HOME_TYPE_OPTIONS,index=0,disabled=True)
+    home_type = st.selectbox("Select Home Type", HOME_TYPE_OPTIONS,index=0)
 
     # Select box for choosing the number of listings
     num_listings = st.selectbox("Select Number of Listings", [5, 10, 50, 100],index=0)
