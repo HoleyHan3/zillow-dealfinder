@@ -2,7 +2,6 @@ import streamlit as st
 from bs4 import BeautifulSoup
 import pandas as pd
 import requests
-import regex as re
 import lxml
 from lxml.html.soupparser import fromstring
 # Configure logging
