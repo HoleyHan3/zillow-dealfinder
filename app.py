@@ -66,7 +66,7 @@ def format_search_parameter(user_input):
 def fetch_zillow_data(location, sale_or_rent='', home_type='', max_properties=None):
     try:
         # Define the base URL
-        base_url = f'https://www.zillow.com/{location}/{home_type}/{sale_or_rent}/'
+        base_url = f'https://www.zillow.com/{home_type}/{location}/{sale_or_rent}/'
 
         # Define request headers
         request_headers = {
