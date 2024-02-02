@@ -10,7 +10,7 @@ import logging
 
 # Define constants
 SALE_OR_RENT_OPTIONS = ["For Sale", "For Rent"]
-HOME_TYPE_OPTIONS = ["Houses", "Apartments", "Townhomes"]
+HOME_TYPE_OPTIONS = ["Homes", "Apartments", "Townhomes"]
 
 # Set up logging configuration
 logging.basicConfig(level=logging.INFO)
