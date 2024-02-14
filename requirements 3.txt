@@ -1,0 +1,8 @@
+beautifulsoup4
+numpy
+pandas
+streamlit
+requests
+lxml
+webdriver-manager
+seleniumbase

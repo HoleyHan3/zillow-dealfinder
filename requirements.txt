@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 beautifulsoup4
 numpy
 pandas
@@ -7,3 +8,6 @@ lxml
 webdriver-manager
 seleniumbase
 selenium
+=======
+scrapy >= 2.6.2
+>>>>>>> 8a6a7ffc (r)
