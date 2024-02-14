@@ -1,4 +1,6 @@
+v_env/
+__pycache__/
 *.csv #ignore all csv files
 *.json #*ignore all json files
-__pycache__/
-v_env/
+output.csv
+output.json
