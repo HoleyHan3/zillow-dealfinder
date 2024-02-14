@@ -25,14 +25,15 @@ class ZillowSpider(scrapy.Spider):
 
         self.log(', '.join(self.start_urls))
 
-    def get_url_template(self):
+    def get_url_template(self, page=1):
         """
         Returns a URL template based on the property type.
 
         :return: str - The URL template based on the property type.
         """
-        url_suffix = 'for-rent/' if self.property_type == 'rental' else 'homes/' if self.property_type == 'unsold' else 'sold/'
-        return self.base_url_template.format('{}', url_suffix)
+        #url_suffix = 'for-rent/' if self.property_type == 'rental' else 'homes/' if self.property_type == 'unsold' else 'sold/'
+        #return self.base_url_template.format('{}', url_suffix)
+        return f"{self.zillow_search_url_template}/{self.property_type}/page-{page}_p/"
 
 
     def parse(self, response):
@@ -57,7 +58,9 @@ class ZillowSpider(scrapy.Spider):
         self.log('Parsing page ' + str(page))
 
         data = response.json()
-        next_page = data['cat1']['searchList']['totalPages']
+        next_page = data.get('cat1', {}).get('searchList', {}).get('totalPages')
+
+        #next_page = data['cat1']['searchList']['totalPages']
 
         for listing in data['cat1']['searchResults']['listResults']:
             adapter = ItemAdapter(
@@ -90,7 +93,7 @@ class ZillowSpider(scrapy.Spider):
         if next_page <= self.max_pages:
             next_query_state = query_state.copy() if query_state else {}
             next_query_state.update({"pagination": {"currentPage": page + 1}})
-            next_page_url = self.zillow_search_url_template.format(quote(json.dumps(next_query_state)))
+            next_page_url = self.get_url_template(page=page + 1)
 
             yield scrapy.Request(next_page_url, callback=self.parse_page_state, cb_kwargs={'page': page + 1, 'query_state': next_query_state})
 
