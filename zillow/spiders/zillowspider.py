@@ -2,6 +2,8 @@ import scrapy
 import json
 import re
 from urllib.parse import quote
+from itemadapter import ItemAdapter
+
 
 
 class ZillowSpider(scrapy.Spider):
@@ -9,6 +11,8 @@ class ZillowSpider(scrapy.Spider):
     allowed_domains = ['zillow.com']
     start_urls = []
     base_url_template = 'https://zillow.com/{}/{}'
+    zillow_search_url_template = 'https://zillow.com/search/GetSearchPageState.htm?searchQueryState={0}&wants=' + quote('{"cat1":["listResults"]}')
+
 
     def __init__(self, property_type='sold', max_pages=10, city_names=None, *args, **kwargs):
         super(ZillowSpider, self).__init__(*args, **kwargs)
@@ -49,72 +53,58 @@ class ZillowSpider(scrapy.Spider):
             self.log(f"Error during parsing: {str(e)}")
 
 
-def parse_page_state(self, response, page=1, query_state=None):
-    """
-    Parse the page state from the response.
+    def parse_page_state(self, response, page=1, query_state=None):
+        self.log('Parsing page ' + str(page))
 
-    Args:
-        response: The response object from which to parse the page state.
-        page: The page number being parsed (default is 1).
-        query_state: The state of the query (default is None).
+        data = response.json()
+        next_page = data['cat1']['searchList']['totalPages']
 
-    Yields:
-        dict: A dictionary containing the parsed information for each listing on the page.
+        for listing in data['cat1']['searchResults']['listResults']:
+            adapter = ItemAdapter(
+                {
+                    'zpid': listing['hdpData']['homeInfo']['zpid'],
+                    'streetAddress': listing['hdpData']['homeInfo']['streetAddress'],
+                    'zipcode': listing['hdpData']['homeInfo']['zipcode'],
+                    'city': listing['hdpData']['homeInfo']['city'],
+                    'state': listing['hdpData']['homeInfo']['state'],
+                    'latitude': listing['hdpData']['homeInfo']['latitude'],
+                    'longitude': listing['hdpData']['homeInfo']['longitude'],
+                    'price': listing['hdpData']['homeInfo']['price'],
+                    'dateSold': listing['hdpData']['homeInfo']['dateSold'],
+                    'bathrooms': listing['hdpData']['homeInfo']['bathrooms'],
+                    'bedrooms': listing['hdpData']['homeInfo']['bedrooms'],
+                    'livingArea': listing['hdpData']['homeInfo']['livingArea'],
+                    'homeType': listing['hdpData']['homeInfo']['homeType'],
+                    'taxAssessedValue': listing['hdpData']['homeInfo']['taxAssessedValue'],
+                    'lotAreaValue': listing['hdpData']['homeInfo']['lotAreaValue'],
+                    'lotAreaUnit': listing['hdpData']['homeInfo']['lotAreaUnit'],
+                }
+            )
 
-    Returns:
-        A scrapy request for the next page, if applicable.
-    """
-    self.log('Parsing page ' + str(page))
+            # Extract monthly Zestimate for unsold homes
+            if self.property_type == 'unsold':
+                adapter['monthlyZestimate'] = listing.get('zestimate', {}).get('valuationRange', {}).get('low', '')
 
-    data = response.json()
-    next_page = data['cat1']['searchList']['totalPages']
+            yield adapter.asdict()
 
-    for listing in data['cat1']['searchResults']['listResults']:
-        home_info = listing['hdpData']['homeInfo']
-            
-        # Extract monthly Zestimate for unsold homes
-        monthly_zestimate = (listing.get('zestimate', {}).get('valuationRange', {}).get('low', '') if self.property_type == 'unsold' else None)
+        if next_page <= self.max_pages:
+            next_query_state = query_state.copy() if query_state else {}
+            next_query_state.update({"pagination": {"currentPage": page + 1}})
+            next_page_url = self.zillow_search_url_template.format(quote(json.dumps(next_query_state)))
 
-        yield {
-            'zpid': home_info['zpid'],
-            'streetAddress': home_info['streetAddress'],
-            'zipcode': home_info['zipcode'],
-            'city': home_info['city'],
-            'state': home_info['state'],
-            'latitude': home_info['latitude'],
-            'longitude': home_info['longitude'],
-            'price': home_info['price'],
-            'dateSold': home_info['dateSold'],
-            'bathrooms': home_info['bathrooms'],
-            'bedrooms': home_info['bedrooms'],
-            'livingArea': home_info['livingArea'],
-            'homeType': home_info['homeType'],
-            'currency': home_info['currency'],
-            'country': home_info['country'],
-            'taxAssessedValue': home_info['taxAssessedValue'],
-            'lotAreaValue': home_info['lotAreaValue'],
-            'lotAreaUnit': home_info['lotAreaUnit'],
-            'monthlyZestimate': monthly_zestimate
-        }
+            yield scrapy.Request(next_page_url, callback=self.parse_page_state, cb_kwargs={'page': page + 1, 'query_state': next_query_state})
 
-    if next_page <= self.max_pages:
-        next_query_state = query_state.copy() if query_state else {}
-        next_query_state.update({"pagination": {"currentPage": page + 1}})
-        next_page_url = self.zillow_search_url_template.format(quote(json.dumps(next_query_state)))
+    @staticmethod
+    def parse_city_name(city_name):
+        """Parse and format the city name.
 
-        yield scrapy.Request(next_page_url, callback=self.parse_page_state, cb_kwargs={'page': page + 1, 'query_state': next_query_state})
+        Args:
+            city_name (str): The name of the city to be parsed and formatted.
 
-@staticmethod
-def parse_city_name(city_name):
-    """Parse and format the city name.
+        Returns:
+            str: The parsed and formatted city name.
+        """
+        # Remove leading and trailing whitespaces, convert to lowercase, and replace commas with spaces
+        formatted_city_name = '-'.join(city_name.strip().lower().replace(',', '').split())
 
-    Args:
-        city_name (str): The name of the city to be parsed and formatted.
-
-    Returns:
-        str: The parsed and formatted city name.
-    """
-    # Remove leading and trailing whitespaces, convert to lowercase, and replace commas with spaces
-    formatted_city_name = '-'.join(city_name.strip().lower().replace(',', '').split())
-
-    return formatted_city_name
+        return formatted_city_name
