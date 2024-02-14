@@ -1,40 +1,50 @@
 import scrapy
 import json
-import re
 from urllib.parse import quote
 from itemadapter import ItemAdapter
-
-
 
 class ZillowSpider(scrapy.Spider):
     name = 'zillowspider'
     allowed_domains = ['zillow.com']
     start_urls = []
     base_url_template = 'https://zillow.com/{}/{}'
-    zillow_search_url_template = 'https://zillow.com/search/GetSearchPageState.htm?searchQueryState={0}&wants=' + quote('{"cat1":["listResults"]}')
 
+    def __init__(self, listing_category='buy', max_pages=10, city_names=None, *args, **kwargs):
+        """
+        Constructor for initializing the web scraping spider.
 
-    def __init__(self, property_type='sold', max_pages=10, city_names=None, *args, **kwargs):
-        super(ZillowSpider, self).__init__(*args, **kwargs)
+        Args:
+            property_type (str): Type of property to scrape, default is 'all'.
+            max_pages (int): Maximum number of pages to scrape, default is 10.
+            city_names (str): Pipe-separated list of city names to scrape.
+
+        Returns:
+            None
+        """
+        super().__init__(*args, **kwargs)
         self.max_pages = int(max_pages)
-        self.property_type = property_type
+        self.listing_type = listing_category
         self.url_template = self.get_url_template()
 
-        if city_names is not None:
+        if city_names:
             self.start_urls = [self.url_template.format(self.parse_city_name(name)) for name in city_names.split('|')]
 
-        self.log(', '.join(self.start_urls))
+        self.log(', '.join(self.start_urls) if hasattr(self, 'start_urls') else '')
 
-    def get_url_template(self, page=1):
+    def get_url_template(self, location='', listing_type='buy', sorting='', page=1):
         """
-        Returns a URL template based on the property type.
+        Returns a URL template based on the provided parameters.
 
-        :return: str - The URL template based on the property type.
+        :param location: str - The location for the search (e.g., 'new-york-ny', 'queens-ny','brooklyn-new-york-ny-11233')
+        :param listing_type: str - The type of property listing (e.g., 'buy', 'rentals', 'sold').
+        :param sorting: str - optional - The sorting option (e.g., 'newest', 'under_400000').
+        :param page: int - The page number.
+        :return: str - The constructed URL template.
         """
-        #url_suffix = 'for-rent/' if self.property_type == 'rental' else 'homes/' if self.property_type == 'unsold' else 'sold/'
-        #return self.base_url_template.format('{}', url_suffix)
-        return f"{self.zillow_search_url_template}/{self.property_type}/page-{page}_p/"
-
+        if sorting:
+            return f"https://www.zillow.com/{location}/{listing_type}/{sorting}/{page}_p/"
+        else:
+            return f"https://www.zillow.com/{location}/{listing_type}/{page}_p/"
 
     def parse(self, response):
         """
@@ -48,19 +58,16 @@ class ZillowSpider(scrapy.Spider):
             encodedQuerySearchTerms = response.css('script[data-zrr-shared-data-key="mobileSearchPageStore"]::text').re_first(r'^<!--(.*)-->$')
             if encodedQuerySearchTerms:
                 queryState = json.loads(encodedQuerySearchTerms).get('queryState', {})
-                results_url = self.zillow_search_url_template.format(quote(json.dumps(queryState)))
+                results_url = self.base_url_template.format(quote(json.dumps(queryState)))
                 yield response.follow(results_url, callback=self.parse_page_state, cb_kwargs={'query_state': queryState})
         except Exception as e:
             self.log(f"Error during parsing: {str(e)}")
-
 
     def parse_page_state(self, response, page=1, query_state=None):
         self.log('Parsing page ' + str(page))
 
         data = response.json()
         next_page = data.get('cat1', {}).get('searchList', {}).get('totalPages')
-
-        #next_page = data['cat1']['searchList']['totalPages']
 
         for listing in data['cat1']['searchResults']['listResults']:
             adapter = ItemAdapter(
@@ -81,11 +88,12 @@ class ZillowSpider(scrapy.Spider):
                     'taxAssessedValue': listing['hdpData']['homeInfo']['taxAssessedValue'],
                     'lotAreaValue': listing['hdpData']['homeInfo']['lotAreaValue'],
                     'lotAreaUnit': listing['hdpData']['homeInfo']['lotAreaUnit'],
+                    'listing_type': self.listing_type  # Set the listing type based on your spider's property_type attribute
                 }
             )
 
             # Extract monthly Zestimate for unsold homes
-            if self.property_type == 'unsold':
+            if self.listing_type == 'unsold':
                 adapter['monthlyZestimate'] = listing.get('zestimate', {}).get('valuationRange', {}).get('low', '')
 
             yield adapter.asdict()

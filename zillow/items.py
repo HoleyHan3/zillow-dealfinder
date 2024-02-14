@@ -18,8 +18,4 @@ class ZillowItem(scrapy.Item):
     lotAreaValue = scrapy.Field()
     lotAreaUnit = scrapy.Field()
     monthlyZestimate = scrapy.Field()
-
-    def __init__(self, *args, **kwargs):
-        super(ZillowItem, self).__init__(*args, **kwargs)
-        # Make dateSold optional
-        self.fields['dateSold'].required = False
+    listing_type = scrapy.Field()
