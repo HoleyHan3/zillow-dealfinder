@@ -26,6 +26,10 @@ class JsonExportPipeline:
         self.json_exporter.export_item(adapter)
         return item
 
+class PrintItemsPipeline:
+    def process_item(self, item, spider):
+        print(item)
+        return item
 
 class CsvExportPipeline:
     def __init__(self):

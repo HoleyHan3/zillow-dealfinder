@@ -80,9 +80,10 @@ CONCURRENT_REQUESTS_PER_DOMAIN = 10
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
-    'zillow.pipelines.JsonExportPipeline': 300,
-    'zillow.pipelines.CsvExportPipeline': 400,
-    'zillow.pipelines.DuplicatesPipeline': 500,
+    'zillow.pipelines.PrintItemsPipeline': 1,
+#    'zillow.pipelines.DuplicatesPipeline': 500,
+#    'zillow.pipelines.JsonExportPipeline': 300,
+#    'zillow.pipelines.CsvExportPipeline': 400,
 }
 
 
